@@ -45,6 +45,4 @@ Refer to the `docs/adr` directory for Architectural Decision Records explaining 
 
 For questions or contributions, contact the Compliance Framework Engine Team.
 
----
-
 **Author:** Senior Lead, AutoAudit
