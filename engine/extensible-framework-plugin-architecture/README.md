@@ -37,10 +37,6 @@ See `example_plugin.py` for a minimal working example.
 - Ensure your container image passes security scans (e.g., Trivy).
 - Register your plugin with the Plugin Registry Service.
 
-## Architectural Decisions
-
-Refer to the `docs/adr` directory for Architectural Decision Records explaining key design choices.
-
 ## Support
 
 For questions or contributions, contact the Compliance Framework Engine Team.
