@@ -40,6 +40,5 @@ See `example_plugin.py` for a minimal working example.
 ## Support
 
 For questions or contributions, contact the Compliance Framework Engine Team.
----
 
 **Author:** Senior Lead, AutoAudit
