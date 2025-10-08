@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: plugin-pod-template
+  
+  labels:
+    app: plugin
+
+spec:
+  
+  containers:
+    
+    - name: plugin-container
+      image: your-registry/plugin:latest
+      ports:
+        - containerPort: 8080
+      
+      envFrom:
+        - secretRef:
+            name: plugin-secrets
+      
+      resources:
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+        
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+  
+  restartPolicy: OnFailure
