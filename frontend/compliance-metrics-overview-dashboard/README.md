@@ -1,10 +1,5 @@
 # Compliance Metrics Overview Dashboard
 
-**Version:** 1.0.0  
-**Task:** T2-FE-006  
-**Team:** AutoAudit Frontend Team  
-**Trimester:** T2 2025
-
 ## Quick Start
 
 ```bash
