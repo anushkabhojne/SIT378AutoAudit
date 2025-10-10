@@ -1,0 +1,8 @@
+aws_region           = "us-east-1"
+vpc_cidr             = "10.1.0.0/16"
+subnet_cidr          = "10.1.1.0/24"
+aws_availability_zone = "us-east-1b"
+admin_cidr           = "198.51.100.0/24"
+ami_id               = "ami-0abcdef1234567890"
+instance_type        = "t3.large"
+key_name             = "autoaudit-prod-key"

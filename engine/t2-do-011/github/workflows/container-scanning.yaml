@@ -1,0 +1,56 @@
+name: Container Security Scanning
+
+on:
+  
+  push:
+    
+    branches:
+      - main
+  
+  pull_request:
+    
+    branches:
+      - main
+
+jobs:
+  
+  build-and-scan:
+    runs-on: ubuntu-latest
+    
+    concurrency:
+      group: container-scanning
+      cancel-in-progress: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Docker image
+        run: |
+          docker build -t autoaudit-service:${{ github.sha }} .
+
+      - name: Run container security scan
+        
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POLICY_PATH: ./src/policies/vulnerability_policy.rego
+        
+        run: |
+          python src/scanner/orchestrator.py --image autoaudit-service:${{ github.sha }} --policy $POLICY_PATH
+
+      - name: Upload scan report artifact
+        uses: actions/upload-artifact@v3
+        
+        with:
+          name: container-scan-report-${{ github.sha }}
+          path: scan_reports/
