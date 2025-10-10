@@ -1,0 +1,73 @@
+#AutoAudit Configuration Management System - Production Dependencies
+#Version pinning ensures reproducible deployments across environments
+# All versions selected for security, stability, and enterprise compatibility
+
+#Core Web Framework and ASGI Server
+fastapi == 0.104.1
+uvicorn[standard] == 0.24.0
+gunicorn == 21.2.0
+
+#Database Connectivity and ORM
+asyncpg == 0.29.0
+sqlalchemy[asyncio] == 2.0.23
+alembic == 1.12.1
+
+#Redis and Caching
+redis[hiredis] == 5.0.1
+aioredis == 2.0.1
+
+#Security and Authentication
+cryptography == 41.0.8
+pyjwt[crypto] == 2.8.0
+passlib[bcrypt] == 1.7.4
+python-jose[cryptography] == 3.3.0
+azure-identity == 1.15.0
+azure-keyvault-secrets == 4.7.0
+hvac == 2.0.0
+
+#Data Validation and Serialization
+pydantic[email] == 2.5.0
+pydantic-settings == 2.1.0
+msgpack == 1.0.7
+
+#HTTP Client and Networking
+httpx == 0.25.2
+aiohttp == 3.9.1
+
+#Monitoring and Observability
+prometheus-client == 0.19.0
+opentelemetry-api == 1.21.0
+opentelemetry-sdk == 1.21.0
+opentelemetry-instrumentation-fastapi == 0.42b0
+opentelemetry-instrumentation-asyncpg == 0.42b0
+opentelemetry-instrumentation-redis == 0.42b0
+opentelemetry-exporter-jaeger-thrift == 1.21.0
+
+#Configuration and Environment Management
+python-decouple == 3.8
+python-dotenv == 1.0.0
+dynaconf == 3.2.4
+
+#Utilities and Helper Libraries
+click == 8.1.7
+python-multipart == 0.0.6
+email-validator == 2.1.0
+python-dateutil == 2.8.2
+pytz == 2023.3
+ujson == 5.8.0
+orjson == 3.9.10
+
+#Background Tasks and Job Processing
+celery[redis] == 5.3.4
+kombu == 5.3.4
+
+#Logging and Structured Data
+structlog == 23.2.0
+python-json-logger == 2.0.7
+
+#System and Process Management
+psutil == 5.9.6
+
+#Development and Production Utilities
+rich  ==  13.7.0
+typer == 0.9.0

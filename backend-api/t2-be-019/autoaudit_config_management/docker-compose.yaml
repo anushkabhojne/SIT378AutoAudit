@@ -1,0 +1,379 @@
+#AutoAudit Configuration Management System - Development Environment
+#Docker Compose configuration for local development with all dependencies
+#Provides complete development stack with monitoring, databases, and debugging tools
+
+version: '3.8'
+
+services:
+  #=============================================================================
+  #Application Services
+  #=============================================================================
+  
+  config-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: autoaudit-config-service-dev
+
+    ports:
+      - "8000:8000"
+      - "5678:5678"  #Debug port
+
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_HOST=postgres
+      - DATABASE_NAME=autoaudit_config
+      - VAULT_TOKEN=dev-root-token
+      - JWT_SECRET_KEY=dev-secret-key-not-for-production
+      - METRICS_ENABLED=true
+      - TRACING_ENABLED=true
+      - JAEGER_AGENT_HOST=jaeger
+
+    volumes:
+      - .:/app
+      - dev_logs:/var/log/autoaudit
+    
+    depends_on:
+      
+      postgres:
+        condition: service_healthy
+      
+      redis:
+        condition: service_healthy
+      
+      vault:
+        condition: service_started
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  #=============================================================================
+  #Database Services  
+  #=============================================================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: autoaudit-postgres-dev
+    
+    ports:
+      - "5432:5432"
+    
+    environment:
+      POSTGRES_DB: autoaudit_config
+      POSTGRES_USER: config_service
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init:/docker-entrypoint-initdb.d
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U config_service -d autoaudit_config"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: autoaudit-postgres-test
+    
+    ports:
+      - "5433:5432"
+    
+    environment:
+      POSTGRES_DB: autoaudit_config_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    profiles:
+      - testing
+
+  #=============================================================================
+  #Cache Services
+  #=============================================================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: autoaudit-redis-dev
+    
+    ports:
+      - "6379:6379"
+    
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: autoaudit-redis-test
+    
+    ports:
+      - "6380:6379"
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    profiles:
+      - testing
+
+  #=============================================================================
+  #Security Services
+  #=============================================================================
+
+  vault:
+    image: vault:1.15
+    container_name: autoaudit-vault-dev
+    
+    ports:
+      - "8200:8200"
+    
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dev-root-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://0.0.0.0:8200
+    
+    volumes:
+      - vault_data:/vault/data
+      - ./config/vault:/vault/config
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    cap_add:
+      - IPC_LOCK
+    
+    command: vault server -dev -dev-root-token-id=dev-root-token
+
+  #=============================================================================
+  #Monitoring Services
+  #=============================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: autoaudit-prometheus-dev
+    
+    ports:
+      - "9090:9090"
+    
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
+      - prometheus_data:/prometheus
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: autoaudit-grafana-dev
+    
+    ports:
+      - "3000:3000"
+    
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_SERVER_DOMAIN: localhost
+    
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    depends_on:
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: autoaudit-jaeger-dev
+    
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "6831:6831/udp"
+    
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    
+    volumes:
+      - jaeger_data:/badger
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+
+  #=============================================================================
+  #Development Tools
+  #=============================================================================
+
+  adminer:
+    image: adminer:latest
+    container_name: autoaudit-adminer-dev
+    
+    ports:
+      - "8080:8080"
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    profiles:
+      - tools
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: autoaudit-redis-commander-dev
+    
+    ports:
+      - "8081:8081"
+    
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    profiles:
+      - tools
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: autoaudit-mailhog-dev
+    
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    
+    networks:
+      - autoaudit-dev
+    
+    restart: unless-stopped
+    
+    profiles:
+      - tools
+
+#=============================================================================
+#Networks Configuration
+#=============================================================================
+
+networks:
+  
+  autoaudit-dev:
+    driver: bridge
+    name: autoaudit-development
+    
+    ipam:
+      
+      config:
+        - subnet: 172.20.0.0/16
+
+#=============================================================================
+#Volumes Configuration  
+#=============================================================================
+
+volumes:
+  postgres_data:
+    name: autoaudit_postgres_data
+    driver: local
+  
+  postgres_test_data:
+    name: autoaudit_postgres_test_data
+    driver: local
+  
+  redis_data:
+    name: autoaudit_redis_data
+    driver: local
+  
+  vault_data:
+    name: autoaudit_vault_data
+    driver: local
+  
+  prometheus_data:
+    name: autoaudit_prometheus_data
+    driver: local
+  
+  grafana_data:
+    name: autoaudit_grafana_data
+    driver: local
+  
+  jaeger_data:
+    name: autoaudit_jaeger_data
+    driver: local
+  
+  dev_logs:
+    name: autoaudit_dev_logs
+    driver: local
